@@ -76,6 +76,11 @@ python -m unittest tests.test_tutorial_sample tests.test_challenge_flow tests.te
 - 分数归一化
 - PDF 选区和 AI 回答保存为笔记
 
+## 项目与测试文档
+
+- [项目文档](docs/PROJECT_DOCUMENTATION.md)
+- [测试文档](docs/TEST_DOCUMENTATION.md)
+
 ## 目录结构
 
 ```text
