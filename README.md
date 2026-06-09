@@ -80,6 +80,18 @@ python -m unittest tests.test_tutorial_sample tests.test_challenge_flow tests.te
 
 - [项目文档](docs/PROJECT_DOCUMENTATION.md)
 - [测试文档](docs/TEST_DOCUMENTATION.md)
+- [功能递增开发路线图](docs/ROADMAP.md)
+- [课程验收清单](docs/ACCEPTANCE_CHECKLIST.md)
+
+## 下一阶段改进重点
+
+当前阶段暂不升级技术栈，优先提高项目使用效果和验收完整度：
+
+1. 增加错题本，保存低分闯关答案、AI 修正和证据提示。
+2. 增加能力画像，用 5 个闯关维度展示论文阅读能力。
+3. 增强课堂汇报，支持 Markdown 复制或独立汇报页。
+4. 补充 API 测试、异常测试和端到端测试。
+5. 在时间允许时接入开放论文 API，提高真实检索能力。
 
 ## 目录结构
 
