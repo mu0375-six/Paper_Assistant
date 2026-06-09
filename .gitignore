@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+# Virtual environments
+.venv/
+venv/
+
+# Local runtime data
+data/*.json
+data/downloads/
+*.log
+
+# Secrets and local environment
+.env
+.env.*
+
+# Local editor / OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Root-level working copies; the served frontend lives in web/
+/app.js
+/home.html
+/reader.html
+/reader-controller.js
+/reader-modern.css
+/style.css
+
+# Course/demo scratch notes
+/课堂展示储备.md
+
+# Old prototype files from the earlier EvoCoder experiment
+/app/agent.py
+/app/evaluator.py
+/app/planner.py
+/app/project_analyzer.py
+/app/skill_manager.py
+/web/index.html

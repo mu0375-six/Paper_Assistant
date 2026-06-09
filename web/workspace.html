@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ScholarFlow - 笔记写作</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700;800&family=Noto+Serif+SC:wght@600;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body data-page="workspace">
+    <div class="app-shell home-shell">
+      <header class="site-topbar home-topbar">
+        <div class="brand-block">
+          <div class="brand-mark">SF</div>
+          <div>
+            <p class="eyebrow">Academic Writing Workspace</p>
+            <h1>ScholarFlow</h1>
+          </div>
+        </div>
+        <nav class="main-nav">
+          <a class="nav-link" href="/">首页</a>
+          <a class="nav-link" href="/discovery">研究方向检索</a>
+          <a class="nav-link" href="/reader" target="_blank" rel="noreferrer">论文阅读台</a>
+          <a class="nav-link is-active" href="/workspace">笔记写作</a>
+        </nav>
+      </header>
+
+      <main class="home-dashboard">
+        <section class="home-hero-panel">
+          <div class="home-hero-copy">
+            <p class="eyebrow">Workspace</p>
+            <h2>把阅读过程沉淀成笔记、计划和草稿。</h2>
+            <p id="workspaceCurrentPaper">先去阅读台选择一篇论文，这里才会展开对应的笔记和写作任务。</p>
+          </div>
+          <aside class="home-focus-card">
+            <p class="eyebrow">Writing Flow</p>
+            <ol class="home-workflow">
+              <li><strong>记录</strong><span>保存选区、AI 回答和自己的理解。</span></li>
+              <li><strong>规划</strong><span>把已读论文转成研究计划。</span></li>
+              <li><strong>写作</strong><span>生成综述草稿和汇报素材。</span></li>
+            </ol>
+          </aside>
+        </section>
+
+        <section class="home-overview">
+          <div class="home-main-column">
+            <section class="panel home-panel">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Notes</p>
+                  <h3>阅读笔记</h3>
+                </div>
+              </div>
+              <form id="noteForm" class="stacked-form">
+                <input id="noteTitleInput" type="text" placeholder="笔记标题，例如：研究问题理解" />
+                <textarea id="noteContentInput" rows="5" placeholder="写下这篇论文的关键理解、疑问或可引用观点。"></textarea>
+                <button class="button button--primary" type="submit">保存笔记</button>
+              </form>
+              <div id="notesPanel" class="home-card-list"></div>
+            </section>
+
+            <section class="panel home-panel">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Writing</p>
+                  <h3>写作草稿</h3>
+                </div>
+              </div>
+              <form id="writingForm" class="stacked-form">
+                <input id="goalInput" type="text" placeholder="写作目标，例如：生成课堂汇报讲稿" />
+                <button class="button button--primary" type="submit">生成写作草稿</button>
+              </form>
+              <div id="writingPanel" class="home-card-list"></div>
+              <div id="draftHistoryPanel" class="home-card-list home-card-list--compact"></div>
+            </section>
+          </div>
+
+          <aside class="home-side-column">
+            <section class="panel home-panel">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Plan</p>
+                  <h3>研究规划</h3>
+                </div>
+              </div>
+              <form id="planForm" class="stacked-form">
+                <textarea id="topicInput" rows="4" placeholder="输入研究主题，例如：大语言模型在学术阅读中的应用"></textarea>
+                <button class="button button--primary" type="submit">生成研究计划</button>
+              </form>
+              <div id="planPanel" class="home-card-list"></div>
+              <div id="planHistoryPanel" class="home-card-list home-card-list--compact"></div>
+            </section>
+          </aside>
+        </section>
+      </main>
+    </div>
+    <script src="/static/app.js"></script>
+  </body>
+</html>

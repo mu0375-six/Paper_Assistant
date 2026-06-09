@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ScholarFlow - 研究方向检索</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body data-page="discovery">
+    <div class="app-shell">
+      <header class="site-topbar">
+        <div class="brand-block">
+          <div class="brand-mark">SF</div>
+          <div>
+            <p class="eyebrow">Academic Reading Workspace</p>
+            <h1>ScholarFlow</h1>
+          </div>
+        </div>
+        <nav class="main-nav">
+          <a class="nav-link" href="/">首页</a>
+          <a class="nav-link is-active" href="/discovery">研究方向检索</a>
+          <a class="nav-link" href="/reader" target="_blank" rel="noreferrer">论文阅读台</a>
+          <a class="nav-link" href="/workspace" target="_blank" rel="noreferrer">笔记写作</a>
+        </nav>
+      </header>
+
+      <div id="statusPanel" class="status-strip"></div>
+
+      <main class="page-shell">
+        <div class="page-head">
+          <div>
+            <p class="eyebrow">Discovery</p>
+            <h2>从研究方向出发，快速筛出值得读的论文</h2>
+          </div>
+        </div>
+
+        <section class="discovery-layout">
+          <section class="panel discovery-form-panel">
+            <form id="searchForm" class="stack-form">
+              <textarea
+                id="searchTopicInput"
+                rows="4"
+                placeholder="输入研究方向，例如：大语言模型在文献综述中的应用、多模态模型在教育场景中的学习辅助等"
+              ></textarea>
+              <button class="button button--primary button--full" type="submit">开始检索</button>
+            </form>
+            <div id="searchSummaryPanel" class="summary-panel empty-state">检索完成后，这里会显示关键词、筛选建议和外部检索入口。</div>
+            <section id="candidateSection" class="candidate-panel">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Candidates</p>
+                  <h3>候选论文与 PDF</h3>
+                </div>
+                <span class="result-hint">检索完成后直接在这里筛选</span>
+              </div>
+              <div id="searchResultsPanel" class="candidate-grid candidate-grid--compact"></div>
+            </section>
+          </section>
+
+          <section class="panel">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">History</p>
+                <h3>检索历史</h3>
+              </div>
+            </div>
+            <div id="searchHistoryPanel" class="card-stack"></div>
+          </section>
+        </section>
+
+      </main>
+    </div>
+    <script src="/static/app.js"></script>
+  </body>
+</html>

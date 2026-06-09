@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Cache-Control" content="no-store" />
+    <title>ScholarFlow - PDF 阅读台</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/style.css?v=reader-legacy" />
+    <link rel="stylesheet" href="/static/reader-modern.css?v=20260523-pdfselect" />
+  </head>
+  <body data-page="reader" class="reader-mode reader-v2 pdf-reader">
+    <div class="reader-shell">
+      <header class="reader-topbar">
+        <a class="reader-brand" href="/" aria-label="返回首页">
+          <span class="brand-orb">SF</span>
+          <strong>ScholarFlow</strong>
+        </a>
+
+        <div class="reader-tools" aria-label="PDF 阅读工具栏">
+          <span id="readerPageIndicator" class="page-pill">PDF</span>
+          <button id="tutorialButton" class="tool-button" type="button">新手教程</button>
+          <button id="analyzeButton" class="tool-button tool-button--primary" type="button">AI 精读</button>
+          <button id="summaryButton" class="tool-button" type="button">讨论摘要</button>
+          <button id="selectionModeButton" class="tool-button" type="button">文本层选区</button>
+          <button id="clipboardSelectionButton" class="tool-button" type="button">复制处理</button>
+          <a id="openPdfButton" class="tool-button" href="#" target="_blank" rel="noreferrer">打开 PDF</a>
+        </div>
+
+        <nav class="reader-nav">
+          <a href="/">首页</a>
+          <a href="/discovery">研究检索</a>
+          <a class="is-active" href="/reader">阅读台</a>
+          <a href="/workspace" target="_blank" rel="noreferrer">笔记写作</a>
+        </nav>
+      </header>
+
+      <main class="reader-layout">
+        <aside class="library-rail">
+          <section class="rail-card rail-menu">
+            <a class="rail-link is-active" href="/reader">文献库</a>
+            <a class="rail-link" href="/workspace" target="_blank" rel="noreferrer">打开笔记写作</a>
+            <button id="samplePaperButton" class="rail-link rail-button" type="button">导入示例论文</button>
+            <label class="rail-link rail-upload">
+              上传 PDF
+              <input id="pdfInput" type="file" accept="application/pdf" hidden />
+            </label>
+          </section>
+
+          <section class="rail-card library-card">
+            <p class="rail-kicker">Library</p>
+            <h2>我的文献</h2>
+            <p id="uploadHint" class="rail-hint">阅读台现在只保留 PDF 原貌正文渲染。公式、图表、参考文献和版式都由浏览器 PDF 阅读器负责，AI 摘要和问答集中在右侧。</p>
+            <div id="readerPaperList" class="paper-list"></div>
+          </section>
+        </aside>
+
+        <section class="paper-stage">
+          <div id="readerFeedback" class="reader-feedback reader-feedback--floating" role="status">PDF 阅读台已就绪</div>
+          <h2 id="activePaperTitle" class="sr-only">请选择一篇文献</h2>
+          <span id="pdfStatusBadge" class="status-badge sr-only">等待 PDF</span>
+          <div class="paper-scroll pdf-scroll">
+            <article id="readerPanel" class="pdf-canvas empty-state">从左侧选择或上传 PDF 后，这里会直接显示原始 PDF 正文。</article>
+          </div>
+        </section>
+
+        <aside class="ai-rail is-chat">
+          <div class="ai-tabs" role="tablist" aria-label="AI 侧栏">
+            <button class="ai-tab" type="button" data-ai-pane="tutorial">教程</button>
+            <button class="ai-tab" type="button" data-ai-pane="summary">摘要</button>
+            <button class="ai-tab" type="button" data-ai-pane="annotations">标注</button>
+            <button class="ai-tab" type="button" data-ai-pane="challenge">闯关</button>
+            <button class="ai-tab is-active" type="button" data-ai-pane="chat">AI 问答</button>
+            <button class="ai-tab" type="button" data-ai-pane="notes">笔记</button>
+          </div>
+          <section id="tutorialPanel" class="ai-panel ai-panel--tutorial"></section>
+          <section id="analysisPanel" class="ai-panel ai-panel--analysis"></section>
+          <section id="annotationPanel" class="ai-panel ai-panel--annotations"></section>
+          <section id="challengePanel" class="ai-panel ai-panel--challenge"></section>
+          <section class="ai-chat-shell">
+            <div id="assistantMessagesPanel" class="ai-messages"></div>
+            <form id="assistantForm" class="ai-composer">
+              <textarea id="assistantInput" rows="4" placeholder="有什么尽管问我。"></textarea>
+              <div class="composer-row">
+                <div class="composer-tools">
+                  <button id="attachButton" class="round-tool" type="button" title="已附带当前论文上下文">附</button>
+                  <button id="aiModeButton" class="round-tool is-active" type="button" title="AI 精读模式">AI</button>
+                </div>
+                <button id="assistantSendButton" class="send-button" type="submit" aria-label="发送">↑</button>
+              </div>
+            </form>
+          </section>
+          <section id="readerNotesPanel" class="ai-panel ai-panel--notes"></section>
+        </aside>
+      </main>
+    </div>
+    <div id="selectionMenu" class="selection-menu" hidden>
+      <button type="button" data-selection-action="explain">解释</button>
+      <button type="button" data-selection-action="translate">翻译</button>
+      <button type="button" data-selection-action="highlight">高亮</button>
+      <button type="button" data-selection-action="note">加入笔记</button>
+      <button type="button" data-selection-action="ask">向 AI 提问</button>
+    </div>
+    <section id="selectionDock" class="selection-dock" hidden>
+      <div class="selection-dock-head">
+        <strong>处理 PDF 选区</strong>
+        <button id="closeSelectionDock" type="button" aria-label="关闭">×</button>
+      </div>
+      <p>在原生 PDF 中选中文字后按 <b>Ctrl+C</b>，再点“读取剪贴板”；如果浏览器拦截，就直接粘贴到下面。</p>
+      <textarea id="selectionDockText" rows="5" placeholder="把 PDF 中复制的文字粘贴到这里..."></textarea>
+      <div class="selection-dock-actions">
+        <button id="readClipboardButton" type="button">读取剪贴板</button>
+        <button type="button" data-dock-action="explain">解释</button>
+        <button type="button" data-dock-action="translate">翻译</button>
+        <button type="button" data-dock-action="note">加入笔记</button>
+        <button type="button" data-dock-action="ask">向 AI 提问</button>
+      </div>
+    </section>
+    <section id="tutorialModal" class="tutorial-modal" hidden aria-modal="true" role="dialog" aria-labelledby="tutorialTitle">
+      <div class="tutorial-dialog">
+        <button id="closeTutorialButton" class="tutorial-close" type="button" aria-label="关闭教程">×</button>
+        <p class="eyebrow">Quick Start</p>
+        <h2 id="tutorialTitle">第一次用 ScholarFlow，按这 6 步读论文</h2>
+        <div id="tutorialModalBody" class="tutorial-modal-body"></div>
+        <div class="tutorial-actions">
+          <button id="modalSampleButton" class="challenge-primary" type="button">导入示例论文并开始</button>
+          <button id="dontShowTutorialButton" class="challenge-secondary" type="button">我知道了，下次不自动弹出</button>
+        </div>
+      </div>
+    </section>
+    <script src="/static/reader-controller.js?v=20260523-selection-dock"></script>
+  </body>
+</html>

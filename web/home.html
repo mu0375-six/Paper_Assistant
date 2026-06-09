@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ScholarFlow - 首页</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@600;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body data-page="home">
+    <div class="app-shell home-shell">
+      <header class="site-topbar home-topbar">
+        <div class="brand-block">
+          <div class="brand-mark">SF</div>
+          <div>
+            <p class="eyebrow">Academic Reading Workspace</p>
+            <h1>ScholarFlow</h1>
+          </div>
+        </div>
+        <nav class="main-nav">
+          <a class="nav-link is-active" href="/">首页</a>
+          <a class="nav-link" href="/discovery">研究方向检索</a>
+          <a class="nav-link" href="/reader" target="_blank" rel="noreferrer">论文阅读台</a>
+          <a class="nav-link" href="/workspace" target="_blank" rel="noreferrer">笔记写作</a>
+        </nav>
+      </header>
+
+      <main class="home-dashboard">
+        <section class="home-hero-panel">
+          <div class="home-hero-copy">
+            <p class="eyebrow">Start Here</p>
+            <h2>先找到值得读的论文，<br />再把它读透。</h2>
+            <p>
+              ScholarFlow 的首页只做一件事：帮你快速进入下一步。没有必要先看完所有功能，
+              直接从检索、阅读或笔记里接着推进。
+            </p>
+            <div class="home-primary-actions">
+              <a class="button button--primary home-action-main" href="/discovery">开始筛论文</a>
+              <a class="button button--ghost" href="/reader" target="_blank" rel="noreferrer">继续阅读</a>
+              <a class="button button--ghost" href="/workspace" target="_blank" rel="noreferrer">整理笔记</a>
+            </div>
+          </div>
+
+          <aside class="home-focus-card">
+            <p class="eyebrow">Current Focus</p>
+            <h3>今天建议先做哪一步？</h3>
+            <ol class="home-workflow">
+              <li><strong>检索</strong><span>输入研究方向，先筛出候选论文。</span></li>
+              <li><strong>阅读</strong><span>挑一篇放进阅读台，边读边问 AI。</span></li>
+              <li><strong>沉淀</strong><span>把关键理解写成笔记或草稿。</span></li>
+            </ol>
+          </aside>
+        </section>
+
+        <section class="home-overview">
+          <div class="home-main-column">
+            <section class="panel home-panel home-recent-panel">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Reading Queue</p>
+                  <h3>最近文献</h3>
+                </div>
+                <a class="ghost-link" href="/reader" target="_blank" rel="noreferrer">打开阅读台</a>
+              </div>
+              <div id="homeRecentPapers" class="home-card-list"></div>
+            </section>
+          </div>
+
+          <aside class="home-side-column">
+            <section class="panel home-panel home-stats-panel">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Library Status</p>
+                  <h3>当前进度</h3>
+                </div>
+              </div>
+              <div id="statusPanel" class="status-strip home-status-strip"></div>
+            </section>
+
+            <section class="panel home-panel home-search-panel">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Recent Search</p>
+                  <h3>最近检索</h3>
+                </div>
+                <a class="ghost-link" href="/discovery">去检索</a>
+              </div>
+              <div id="homeRecentSearches" class="home-card-list home-card-list--compact"></div>
+            </section>
+          </aside>
+        </section>
+      </main>
+    </div>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
