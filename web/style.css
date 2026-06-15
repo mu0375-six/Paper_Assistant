@@ -2073,25 +2073,6 @@ input {
   gap: 8px;
 }
 
-.stacked-form {
-  display: grid;
-  gap: 12px;
-  margin: 14px 0 18px;
-}
-
-.stacked-form input,
-.stacked-form textarea {
-  border: 1px solid #ded6c8;
-  border-radius: 18px;
-  background: #fffefa;
-  color: #172033;
-  line-height: 1.7;
-}
-
-.stacked-form .button {
-  width: fit-content;
-}
-
 .home-search-card {
   display: block;
   padding: 14px;

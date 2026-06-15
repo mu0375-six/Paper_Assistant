@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ScholarFlow</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand-block">
+          <div class="brand-mark">SF</div>
+          <div>
+            <p class="eyebrow">Academic Reading Workspace</p>
+            <h1>ScholarFlow</h1>
+          </div>
+        </div>
+        <nav class="main-nav">
+          <button class="nav-button is-active" type="button" data-route="home">首页</button>
+          <button class="nav-button" type="button" data-route="discovery">研究方向检索</button>
+          <button class="nav-button" type="button" data-route="reader">论文阅读台</button>
+          <button class="nav-button" type="button" data-route="workspace">笔记与写作</button>
+        </nav>
+      </header>
+
+      <div id="statusPanel" class="status-strip"></div>
+
+      <main class="pages">
+        <section class="page page--active" data-page="home">
+          <section class="hero panel">
+            <div>
+              <p class="eyebrow">Home</p>
+              <h2>先选入口，再进入具体功能</h2>
+              <p class="hero__text">
+                这一版不再把所有东西都塞在一张页面里。首页只负责展示你能做什么、最近在看什么、接下来从哪里进入。
+              </p>
+            </div>
+            <div class="hero-actions">
+              <button class="button button--primary" type="button" data-route-link="discovery">开始找论文</button>
+              <button class="button button--ghost" type="button" data-route-link="reader">继续阅读</button>
+            </div>
+          </section>
+
+          <section class="module-grid">
+            <article class="module-card panel" data-route-link="discovery">
+              <p class="eyebrow">Module 01</p>
+              <h3>研究方向检索</h3>
+              <p>输入研究主题，查看候选论文、筛选建议和检索入口。</p>
+            </article>
+            <article class="module-card panel" data-route-link="reader">
+              <p class="eyebrow">Module 02</p>
+              <h3>论文阅读台</h3>
+              <p>像阅读器一样聚焦当前论文，只保留文献列表、正文和 AI 理解辅助。</p>
+            </article>
+            <article class="module-card panel" data-route-link="workspace">
+              <p class="eyebrow">Module 03</p>
+              <h3>笔记与写作</h3>
+              <p>围绕当前论文记录笔记，再生成研究计划和写作草稿。</p>
+            </article>
+          </section>
+
+          <section class="home-grid">
+            <section class="panel home-panel">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Recent Papers</p>
+                  <h3>最近文献</h3>
+                </div>
+                <button class="button button--ghost" type="button" data-route-link="reader">打开阅读台</button>
+              </div>
+              <div id="homeRecentPapers" class="card-stack"></div>
+            </section>
+
+            <section class="panel home-panel">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Recent Search</p>
+                  <h3>最近检索</h3>
+                </div>
+                <button class="button button--ghost" type="button" data-route-link="discovery">继续检索</button>
+              </div>
+              <div id="homeRecentSearches" class="card-stack"></div>
+            </section>
+          </section>
+        </section>
+
+        <section class="page" data-page="discovery">
+          <div class="page-head">
+            <div>
+              <p class="eyebrow">Discovery</p>
+              <h2>研究方向检索</h2>
+            </div>
+          </div>
+
+          <section class="discovery-layout">
+            <section class="panel discovery-form-panel">
+              <form id="searchForm" class="stack-form">
+                <textarea
+                  id="searchTopicInput"
+                  rows="4"
+                  placeholder="输入研究方向，例如：大语言模型在学术阅读与文献综述中的应用"
+                ></textarea>
+                <button class="button button--primary button--full" type="submit">开始检索</button>
+              </form>
+              <div id="searchSummaryPanel" class="summary-panel empty-state">
+                检索后会在这里显示关键词、筛选重点和检索入口。你可以先缩小研究方向，再把值得精读的文献加入文献库。
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">History</p>
+                  <h3>检索历史</h3>
+                </div>
+              </div>
+              <div id="searchHistoryPanel" class="card-stack"></div>
+            </section>
+          </section>
+
+          <section class="panel">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">Candidates</p>
+                <h3>候选论文</h3>
+              </div>
+            </div>
+            <div id="searchResultsPanel" class="candidate-grid"></div>
+          </section>
+        </section>
+
+        <section class="page" data-page="reader">
+          <div class="page-head">
+            <div>
+              <p class="eyebrow">Reader</p>
+              <h2>论文阅读台</h2>
+            </div>
+            <div class="page-head-actions">
+              <button id="analyzeButton" class="button button--primary" type="button">生成阅读分析</button>
+            </div>
+          </div>
+
+          <section class="reader-layout">
+            <aside class="panel reader-side">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Library</p>
+                  <h3>文献库</h3>
+                </div>
+              </div>
+              <div id="readerPaperList" class="card-stack"></div>
+
+              <details class="importer">
+                <summary>导入或修正文献</summary>
+                <div class="importer-body">
+                  <label class="button button--ghost file-button">
+                    选择 PDF
+                    <input id="pdfInput" type="file" accept="application/pdf" hidden />
+                  </label>
+                  <p id="uploadHint" class="muted">上传 PDF 后会自动提取标题、作者、年份和正文片段。</p>
+                  <form id="paperForm" class="stack-form">
+                    <input id="titleInput" type="text" placeholder="文献标题" />
+                    <input id="authorsInput" type="text" placeholder="作者，例如：A. Smith; B. Lee" />
+                    <div class="two-field">
+                      <input id="yearInput" type="text" placeholder="年份" />
+                      <input id="sourceInput" type="text" placeholder="来源，例如：arXiv / ACL / Nature" />
+                    </div>
+                    <textarea id="abstractInput" rows="4" placeholder="摘要"></textarea>
+                    <textarea id="contentInput" rows="7" placeholder="正文片段、导言或方法部分"></textarea>
+                    <div class="button-row">
+                      <button class="button button--primary" type="submit">保存文献</button>
+                      <button id="demoPaperButton" class="button button--ghost" type="button">填充示例</button>
+                    </div>
+                  </form>
+                </div>
+              </details>
+            </aside>
+
+            <article id="readerPanel" class="panel reader-panel">
+              <div class="empty-state">从左侧文献库选择一篇论文后，这里会展示更聚焦的阅读视图。</div>
+            </article>
+
+            <aside id="analysisPanel" class="panel analysis-panel">
+              <div class="empty-state">阅读分析、关键词、研究问题和精读问题会出现在这里。</div>
+            </aside>
+          </section>
+        </section>
+
+        <section class="page" data-page="workspace">
+          <div class="page-head">
+            <div>
+              <p class="eyebrow">Workspace</p>
+              <h2>笔记与写作</h2>
+            </div>
+          </div>
+
+          <section class="workspace-grid">
+            <section class="panel workspace-current">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Current Paper</p>
+                  <h3>当前论文</h3>
+                </div>
+              </div>
+              <div id="workspaceCurrentPaper" class="empty-state">先去阅读台选择一篇论文，这里才会展开对应的笔记和写作任务。</div>
+            </section>
+
+            <section class="panel">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Notes</p>
+                  <h3>阅读笔记</h3>
+                </div>
+              </div>
+              <form id="noteForm" class="stack-form">
+                <input id="noteTitleInput" type="text" placeholder="笔记标题，例如：方法亮点 / 研究问题 / 可引用观点" />
+                <textarea id="noteContentInput" rows="5" placeholder="记录你的理解、疑问、可复用观点或与其他论文的比较"></textarea>
+                <button class="button button--primary button--full" type="submit">保存笔记</button>
+              </form>
+              <div id="notesPanel" class="card-stack"></div>
+            </section>
+
+            <section class="panel">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Plan</p>
+                  <h3>研究规划</h3>
+                </div>
+              </div>
+              <form id="planForm" class="stack-form">
+                <textarea id="topicInput" rows="4" placeholder="输入研究主题，例如：AI 在学术阅读与综述写作中的辅助作用"></textarea>
+                <button class="button button--ghost button--full" type="submit">生成研究计划</button>
+              </form>
+              <div id="planPanel" class="empty-state">这里会结合文献库给出阅读路线、阶段目标和输出建议。</div>
+            </section>
+
+            <section class="panel">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Writing</p>
+                  <h3>写作草稿</h3>
+                </div>
+              </div>
+              <form id="writingForm" class="stack-form">
+                <textarea id="goalInput" rows="4" placeholder="输入写作目标，例如：生成课程综述提纲与摘要草稿"></textarea>
+                <button class="button button--ghost button--full" type="submit">生成写作草稿</button>
+              </form>
+              <div id="writingPanel" class="empty-state">这里会生成提纲、摘要草稿和 related work 草稿。</div>
+            </section>
+          </section>
+        </section>
+      </main>
+    </div>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
