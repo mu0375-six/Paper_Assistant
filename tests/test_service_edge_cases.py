@@ -13,6 +13,8 @@ from app.storage import JsonStore
 
 
 class FakeLLM:
+    model = "test-model"
+
     def is_configured(self):
         return False
 

@@ -1,12 +1,14 @@
-"""Flask API 接口自动化测试。
+"""FastAPI 接口自动化测试。
 
-使用 Flask test client 验证各 API 端点的正常响应和错误处理，
+使用 FastAPI TestClient 验证各 API 端点的正常响应和错误处理，
 对应测试文档中的 API-01 至 API-11 以及部分 ET 异常测试用例。
 """
 
 import tempfile
 import unittest
 from pathlib import Path
+
+from fastapi.testclient import TestClient
 
 from app import create_app
 from app.deepseek_client import DeepSeekClient
@@ -17,44 +19,29 @@ from app.storage import JsonStore
 class FakeLLM:
     """未配置 API Key 的 LLM 替身，使服务走 fallback 路径。"""
 
+    model = "test-model"
+
     def is_configured(self):
         return False
 
 
 def _make_test_app():
-    """创建使用临时数据目录和 FakeLLM 的测试 Flask 应用。"""
+    """创建使用临时数据目录和 FakeLLM 的测试应用。"""
     temp_dir = tempfile.TemporaryDirectory()
-
-    app = create_app()
-    app.config["TESTING"] = True
-
-    # 替换路由中创建的服务实例
-    store = JsonStore(Path(temp_dir.name))
-    llm_client = FakeLLM()
-    scholar = ScholarService(store, llm_client)
-
-    with app.app_context():
-        # 直接替换 register_routes 中注册闭包使用的变量
-        # 需要在路由注册后修改视图函数所引用的服务实例
-        pass
-
-    # 由于 register_routes 在 create_app 中已执行，
-    # 我们需要通过另一种方式注入测试依赖。
-    # 采用方案：重新注册路由并使用测试服务实例。
-    app_test = create_app()
-    app_test.config["TESTING"] = True
 
     test_store = JsonStore(Path(temp_dir.name))
     test_llm = FakeLLM()
     test_scholar = ScholarService(test_store, test_llm)
 
-    # 在 app_test 上追加一个引用，供视图函数使用
-    app_test._test_store = test_store
-    app_test._test_scholar = test_scholar
-    app_test._test_llm = test_llm
-    app_test._temp_dir = temp_dir
+    from app.main import create_router
+    from fastapi import FastAPI
 
-    return app_test, test_store, test_scholar, test_llm, temp_dir
+    app = FastAPI()
+    router = create_router(test_store, test_llm, test_scholar)
+    app.include_router(router)
+
+    client = TestClient(app)
+    return client, test_store, test_scholar, test_llm, temp_dir
 
 
 class APIStatusTests(unittest.TestCase):
@@ -62,8 +49,7 @@ class APIStatusTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.app, cls.store, cls.scholar, cls.llm, cls.temp_dir = _make_test_app()
-        cls.client = cls.app.test_client()
+        cls.client, cls.store, cls.scholar, cls.llm, cls.temp_dir = _make_test_app()
 
     @classmethod
     def tearDownClass(cls):
@@ -74,16 +60,16 @@ class APIStatusTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_status_contains_configured_field(self):
-        data = self.client.get("/api/status").get_json()
+        data = self.client.get("/api/status").json()
         self.assertIn("configured", data)
         self.assertFalse(data["configured"])
 
     def test_status_contains_model_field(self):
-        data = self.client.get("/api/status").get_json()
+        data = self.client.get("/api/status").json()
         self.assertIn("model", data)
 
     def test_status_contains_storage_stats(self):
-        data = self.client.get("/api/status").get_json()
+        data = self.client.get("/api/status").json()
         self.assertIn("paper_count", data)
         self.assertIn("note_count", data)
 
@@ -93,8 +79,7 @@ class APIDashboardTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.app, cls.store, cls.scholar, cls.llm, cls.temp_dir = _make_test_app()
-        cls.client = cls.app.test_client()
+        cls.client, cls.store, cls.scholar, cls.llm, cls.temp_dir = _make_test_app()
 
     @classmethod
     def tearDownClass(cls):
@@ -105,7 +90,7 @@ class APIDashboardTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_dashboard_contains_expected_collections(self):
-        data = self.client.get("/api/dashboard").get_json()
+        data = self.client.get("/api/dashboard").json()
         for key in ("papers", "notes", "search_history", "plans", "writing_drafts"):
             self.assertIn(key, data)
 
@@ -115,8 +100,7 @@ class APITutorialSampleTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.app, cls.store, cls.scholar, cls.llm, cls.temp_dir = _make_test_app()
-        cls.client = cls.app.test_client()
+        cls.client, cls.store, cls.scholar, cls.llm, cls.temp_dir = _make_test_app()
 
     @classmethod
     def tearDownClass(cls):
@@ -127,14 +111,14 @@ class APITutorialSampleTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_sample_paper_has_expected_fields(self):
-        data = self.client.post("/api/tutorial/sample-paper").get_json()
+        data = self.client.post("/api/tutorial/sample-paper").json()
         self.assertTrue(data.get("tutorial_sample"))
         self.assertIn("analysis", data)
         self.assertIn("pages", data)
 
     def test_sample_paper_idempotent(self):
-        first = self.client.post("/api/tutorial/sample-paper").get_json()
-        second = self.client.post("/api/tutorial/sample-paper").get_json()
+        first = self.client.post("/api/tutorial/sample-paper").json()
+        second = self.client.post("/api/tutorial/sample-paper").json()
         self.assertEqual(first["id"], second["id"])
 
 
@@ -143,8 +127,7 @@ class APICreatePaperTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.app, cls.store, cls.scholar, cls.llm, cls.temp_dir = _make_test_app()
-        cls.client = cls.app.test_client()
+        cls.client, cls.store, cls.scholar, cls.llm, cls.temp_dir = _make_test_app()
 
     @classmethod
     def tearDownClass(cls):
@@ -161,22 +144,25 @@ class APICreatePaperTests(unittest.TestCase):
         data = self.client.post(
             "/api/papers",
             json={"title": "字段保留测试", "authors": "李四", "year": "2025", "abstract": "测试摘要"},
-        ).get_json()
+        ).json()
         self.assertEqual(data["title"], "字段保留测试")
         self.assertEqual(data["authors"], "李四")
         self.assertEqual(data["year"], "2025")
 
-    def test_create_paper_empty_title_returns_400(self):
+    def test_create_paper_empty_title_returns_422(self):
+        """FastAPI Pydantic 校验：空字符串不满足 min_length=1，返回 422。"""
         response = self.client.post("/api/papers", json={"title": ""})
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 422)
 
-    def test_create_paper_missing_title_returns_400(self):
+    def test_create_paper_missing_title_returns_422(self):
+        """FastAPI Pydantic 校验：缺少必填字段，返回 422。"""
         response = self.client.post("/api/papers", json={})
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 422)
 
-    def test_create_paper_whitespace_title_returns_400(self):
+    def test_create_paper_whitespace_title_returns_422(self):
+        """FastAPI Pydantic 校验：纯空格不满足 min_length=1，返回 422。"""
         response = self.client.post("/api/papers", json={"title": "   "})
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 422)
 
 
 class APIGetPaperTests(unittest.TestCase):
@@ -184,13 +170,11 @@ class APIGetPaperTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.app, cls.store, cls.scholar, cls.llm, cls.temp_dir = _make_test_app()
-        cls.client = cls.app.test_client()
-        # 先创建一篇论文
+        cls.client, cls.store, cls.scholar, cls.llm, cls.temp_dir = _make_test_app()
         cls.paper = cls.client.post(
             "/api/papers",
             json={"title": "获取测试论文", "authors": "王五"},
-        ).get_json()
+        ).json()
 
     @classmethod
     def tearDownClass(cls):
@@ -201,7 +185,7 @@ class APIGetPaperTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_get_existing_paper_has_title(self):
-        data = self.client.get(f"/api/papers/{self.paper['id']}").get_json()
+        data = self.client.get(f"/api/papers/{self.paper['id']}").json()
         self.assertEqual(data["title"], "获取测试论文")
 
     def test_get_missing_paper_returns_404(self):
@@ -214,12 +198,11 @@ class APIAnalyzePaperTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.app, cls.store, cls.scholar, cls.llm, cls.temp_dir = _make_test_app()
-        cls.client = cls.app.test_client()
+        cls.client, cls.store, cls.scholar, cls.llm, cls.temp_dir = _make_test_app()
         cls.paper = cls.client.post(
             "/api/papers",
             json={"title": "分析测试论文", "abstract": "本文研究深度学习在自然语言处理中的应用。"},
-        ).get_json()
+        ).json()
 
     @classmethod
     def tearDownClass(cls):
@@ -230,7 +213,7 @@ class APIAnalyzePaperTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_analyze_returns_analysis_fields(self):
-        data = self.client.post(f"/api/papers/{self.paper['id']}/analyze").get_json()
+        data = self.client.post(f"/api/papers/{self.paper['id']}/analyze").json()
         self.assertIn("analysis", data)
         analysis = data["analysis"]
         self.assertIn("summary", analysis)
@@ -247,8 +230,7 @@ class APIChallengeTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.app, cls.store, cls.scholar, cls.llm, cls.temp_dir = _make_test_app()
-        cls.client = cls.app.test_client()
+        cls.client, cls.store, cls.scholar, cls.llm, cls.temp_dir = _make_test_app()
         cls.paper = cls.client.post(
             "/api/papers",
             json={
@@ -261,42 +243,44 @@ class APIChallengeTests(unittest.TestCase):
                     "limitations": ["依赖高质量点云", "动态环境考虑不足"],
                 },
             },
-        ).get_json()
+        ).json()
 
     @classmethod
     def tearDownClass(cls):
         cls.temp_dir.cleanup()
 
     def test_get_challenge_returns_5_stages(self):
-        data = self.client.get(f"/api/papers/{self.paper['id']}/challenge").get_json()
+        data = self.client.get(f"/api/papers/{self.paper['id']}/challenge").json()
         self.assertEqual(data["total_count"], 5)
         self.assertEqual(len(data["stages"]), 5)
 
     def test_get_challenge_first_stage_is_problem(self):
-        data = self.client.get(f"/api/papers/{self.paper['id']}/challenge").get_json()
+        data = self.client.get(f"/api/papers/{self.paper['id']}/challenge").json()
         self.assertEqual(data["stages"][0]["id"], "problem")
 
     def test_submit_answer_returns_score(self):
         data = self.client.post(
             f"/api/papers/{self.paper['id']}/challenge/problem",
             json={"answer": "这篇论文解决无人机巡检中电磁干扰导致的安全风险。"},
-        ).get_json()
+        ).json()
         self.assertIn("stages", data)
         self.assertGreaterEqual(data["stages"][0]["latest_attempt"]["score"], 0)
 
-    def test_submit_empty_answer_returns_400(self):
+    def test_submit_empty_answer_returns_422(self):
+        """Pydantic min_length=1 校验：空答案返回 422。"""
         response = self.client.post(
             f"/api/papers/{self.paper['id']}/challenge/problem",
             json={"answer": ""},
         )
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 422)
 
-    def test_submit_whitespace_answer_returns_400(self):
+    def test_submit_whitespace_answer_returns_422(self):
+        """Pydantic min_length=1 校验：纯空格答案返回 422。"""
         response = self.client.post(
             f"/api/papers/{self.paper['id']}/challenge/problem",
             json={"answer": "   "},
         )
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 422)
 
     def test_challenge_missing_paper_returns_404(self):
         response = self.client.get("/api/papers/nonexistent-id/challenge")
@@ -308,8 +292,7 @@ class APIChallengeReportTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.app, cls.store, cls.scholar, cls.llm, cls.temp_dir = _make_test_app()
-        cls.client = cls.app.test_client()
+        cls.client, cls.store, cls.scholar, cls.llm, cls.temp_dir = _make_test_app()
         cls.paper = cls.client.post(
             "/api/papers",
             json={
@@ -322,8 +305,7 @@ class APIChallengeReportTests(unittest.TestCase):
                     "limitations": ["奖励函数设计依赖专家经验", "仿真环境与真实环境存在差距"],
                 },
             },
-        ).get_json()
-        # 先提交一个闯关答案
+        ).json()
         cls.client.post(
             f"/api/papers/{cls.paper['id']}/challenge/problem",
             json={"answer": "本文解决机器人奖励函数设计效率问题。"},
@@ -338,12 +320,12 @@ class APIChallengeReportTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_challenge_report_has_sections(self):
-        data = self.client.get(f"/api/papers/{self.paper['id']}/challenge-report").get_json()
+        data = self.client.get(f"/api/papers/{self.paper['id']}/challenge-report").json()
         self.assertIn("sections", data)
         self.assertGreaterEqual(len(data["sections"]), 5)
 
     def test_challenge_report_has_overall_score(self):
-        data = self.client.get(f"/api/papers/{self.paper['id']}/challenge-report").get_json()
+        data = self.client.get(f"/api/papers/{self.paper['id']}/challenge-report").json()
         self.assertIn("overall_score", data)
 
 
@@ -352,12 +334,11 @@ class APINotesTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.app, cls.store, cls.scholar, cls.llm, cls.temp_dir = _make_test_app()
-        cls.client = cls.app.test_client()
+        cls.client, cls.store, cls.scholar, cls.llm, cls.temp_dir = _make_test_app()
         cls.paper = cls.client.post(
             "/api/papers",
             json={"title": "笔记测试论文"},
-        ).get_json()
+        ).json()
 
     @classmethod
     def tearDownClass(cls):
@@ -382,22 +363,24 @@ class APINotesTests(unittest.TestCase):
                 "title": "方法笔记",
                 "content": "方法流程包括数据采集和模型训练。",
             },
-        ).get_json()
+        ).json()
         self.assertEqual(data["content"], "方法流程包括数据采集和模型训练。")
 
-    def test_save_note_missing_paper_id_returns_400(self):
+    def test_save_note_missing_paper_id_returns_422(self):
+        """Pydantic 校验：缺少 paper_id 返回 422。"""
         response = self.client.post(
             "/api/notes",
             json={"title": "无论文笔记", "content": "内容"},
         )
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 422)
 
-    def test_save_note_empty_paper_id_returns_400(self):
+    def test_save_note_empty_paper_id_returns_422(self):
+        """Pydantic min_length=1 校验：空 paper_id 返回 422。"""
         response = self.client.post(
             "/api/notes",
             json={"paper_id": "", "title": "空论文", "content": "内容"},
         )
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 422)
 
 
 class APIDiscoverySearchTests(unittest.TestCase):
@@ -405,8 +388,7 @@ class APIDiscoverySearchTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.app, cls.store, cls.scholar, cls.llm, cls.temp_dir = _make_test_app()
-        cls.client = cls.app.test_client()
+        cls.client, cls.store, cls.scholar, cls.llm, cls.temp_dir = _make_test_app()
 
     @classmethod
     def tearDownClass(cls):
@@ -423,23 +405,25 @@ class APIDiscoverySearchTests(unittest.TestCase):
         data = self.client.post(
             "/api/discovery/search",
             json={"topic": "large language model"},
-        ).get_json()
+        ).json()
         self.assertIn("keywords", data)
         self.assertIn("results", data)
 
-    def test_search_empty_topic_returns_400(self):
+    def test_search_empty_topic_returns_422(self):
+        """Pydantic min_length=1 校验：空 topic 返回 422。"""
         response = self.client.post(
             "/api/discovery/search",
             json={"topic": ""},
         )
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 422)
 
-    def test_search_whitespace_topic_returns_400(self):
+    def test_search_whitespace_topic_returns_422(self):
+        """Pydantic min_length=1 校验：纯空格 topic 返回 422。"""
         response = self.client.post(
             "/api/discovery/search",
             json={"topic": "   "},
         )
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 422)
 
 
 class APIDiscoverySaveResultTests(unittest.TestCase):
@@ -447,19 +431,19 @@ class APIDiscoverySaveResultTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.app, cls.store, cls.scholar, cls.llm, cls.temp_dir = _make_test_app()
-        cls.client = cls.app.test_client()
+        cls.client, cls.store, cls.scholar, cls.llm, cls.temp_dir = _make_test_app()
 
     @classmethod
     def tearDownClass(cls):
         cls.temp_dir.cleanup()
 
-    def test_save_result_empty_title_returns_400(self):
+    def test_save_result_empty_title_returns_422(self):
+        """Pydantic min_length=1 校验：空 title 返回 422。"""
         response = self.client.post(
             "/api/discovery/save-result",
             json={"title": "", "authors": "A", "year": "2024"},
         )
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 422)
 
 
 class APIResearchPlanTests(unittest.TestCase):
@@ -467,8 +451,7 @@ class APIResearchPlanTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.app, cls.store, cls.scholar, cls.llm, cls.temp_dir = _make_test_app()
-        cls.client = cls.app.test_client()
+        cls.client, cls.store, cls.scholar, cls.llm, cls.temp_dir = _make_test_app()
 
     @classmethod
     def tearDownClass(cls):
@@ -485,16 +468,17 @@ class APIResearchPlanTests(unittest.TestCase):
         data = self.client.post(
             "/api/research-plan",
             json={"topic": "自然语言处理"},
-        ).get_json()
+        ).json()
         self.assertIn("topic_summary", data)
         self.assertIn("weekly_plan", data)
 
-    def test_plan_empty_topic_returns_400(self):
+    def test_plan_empty_topic_returns_422(self):
+        """Pydantic min_length=1 校验：空 topic 返回 422。"""
         response = self.client.post(
             "/api/research-plan",
             json={"topic": ""},
         )
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 422)
 
 
 class APIWritingPackTests(unittest.TestCase):
@@ -502,8 +486,7 @@ class APIWritingPackTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.app, cls.store, cls.scholar, cls.llm, cls.temp_dir = _make_test_app()
-        cls.client = cls.app.test_client()
+        cls.client, cls.store, cls.scholar, cls.llm, cls.temp_dir = _make_test_app()
 
     @classmethod
     def tearDownClass(cls):
@@ -520,16 +503,17 @@ class APIWritingPackTests(unittest.TestCase):
         data = self.client.post(
             "/api/writing-pack",
             json={"topic": "论文综述", "goal": "综述报告"},
-        ).get_json()
+        ).json()
         self.assertIn("outline", data)
         self.assertIn("abstract_draft", data)
 
-    def test_writing_pack_empty_topic_returns_400(self):
+    def test_writing_pack_empty_topic_returns_422(self):
+        """Pydantic min_length=1 校验：空 topic 返回 422。"""
         response = self.client.post(
             "/api/writing-pack",
             json={"topic": "", "goal": "报告"},
         )
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 422)
 
 
 class APISentenceSearchTests(unittest.TestCase):
@@ -537,15 +521,14 @@ class APISentenceSearchTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.app, cls.store, cls.scholar, cls.llm, cls.temp_dir = _make_test_app()
-        cls.client = cls.app.test_client()
+        cls.client, cls.store, cls.scholar, cls.llm, cls.temp_dir = _make_test_app()
         cls.paper = cls.client.post(
             "/api/papers",
             json={
                 "title": "句子搜索测试",
                 "content": "深度学习是机器学习的一个分支。它使用多层神经网络来学习数据的表示。近年来，Transformer架构在自然语言处理领域取得了巨大成功。",
             },
-        ).get_json()
+        ).json()
 
     @classmethod
     def tearDownClass(cls):
@@ -555,15 +538,23 @@ class APISentenceSearchTests(unittest.TestCase):
         data = self.client.post(
             f"/api/papers/{self.paper['id']}/sentence-search",
             json={"query": "深度学习"},
-        ).get_json()
+        ).json()
         self.assertIn("matches", data)
 
-    def test_sentence_search_empty_query_returns_400(self):
+    def test_sentence_search_empty_query_returns_422(self):
+        """Pydantic min_length=1 校验：空 query 返回 422。"""
         response = self.client.post(
             f"/api/papers/{self.paper['id']}/sentence-search",
             json={"query": ""},
         )
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 422)
+
+    def test_sentence_search_missing_paper_returns_404(self):
+        response = self.client.post(
+            "/api/papers/nonexistent-id/sentence-search",
+            json={"query": "test"},
+        )
+        self.assertEqual(response.status_code, 404)
 
 
 class APIAssistantTests(unittest.TestCase):
@@ -571,12 +562,11 @@ class APIAssistantTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.app, cls.store, cls.scholar, cls.llm, cls.temp_dir = _make_test_app()
-        cls.client = cls.app.test_client()
+        cls.client, cls.store, cls.scholar, cls.llm, cls.temp_dir = _make_test_app()
         cls.paper = cls.client.post(
             "/api/papers",
             json={"title": "问答测试论文", "abstract": "本文研究知识图谱的构建方法。"},
-        ).get_json()
+        ).json()
 
     @classmethod
     def tearDownClass(cls):
@@ -593,15 +583,30 @@ class APIAssistantTests(unittest.TestCase):
         data = self.client.post(
             f"/api/papers/{self.paper['id']}/assistant",
             json={"message": "请解释研究问题"},
-        ).get_json()
+        ).json()
         self.assertIn("messages", data)
 
-    def test_assistant_empty_message_returns_400(self):
+    def test_assistant_empty_message_returns_422(self):
+        """Pydantic min_length=1 校验：空 message 返回 422。"""
         response = self.client.post(
             f"/api/papers/{self.paper['id']}/assistant",
             json={"message": ""},
         )
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 422)
+
+    def test_assistant_missing_paper_returns_404(self):
+        response = self.client.post(
+            "/api/papers/nonexistent-id/assistant",
+            json={"message": "test"},
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_translate_missing_paper_returns_404(self):
+        response = self.client.post(
+            "/api/papers/nonexistent-id/translate",
+            json={"target_language": "zh", "scope": "abstract"},
+        )
+        self.assertEqual(response.status_code, 404)
 
 
 if __name__ == "__main__":

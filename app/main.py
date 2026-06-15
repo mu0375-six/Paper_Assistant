@@ -1,9 +1,32 @@
+"""FastAPI 路由注册。
+
+使用 FastAPI 替代 Flask，提供：
+- 自动生成的 Swagger UI（/docs）
+- Pydantic 请求模型自动校验
+- 统一的异常处理
+- 类型标注的响应格式
+"""
+
 from pathlib import Path
 
-from flask import jsonify, request, send_from_directory
-from werkzeug.exceptions import HTTPException
+from fastapi import APIRouter, HTTPException, Request, UploadFile
+from fastapi.responses import FileResponse, JSONResponse
 
 from .deepseek_client import DeepSeekClient
+from .schemas import (
+    AssistantChatRequest,
+    CreatePaperRequest,
+    DownloadPdfRequest,
+    ResearchPlanRequest,
+    SaveDiscoveryResultRequest,
+    SaveNoteRequest,
+    SearchRequest,
+    SentenceSearchRequest,
+    SubmitChallengeAnswerRequest,
+    TranslatePaperRequest,
+    TranslateResultRequest,
+    WritingPackRequest,
+)
 from .scholar_service import ScholarService
 from .storage import JsonStore
 
@@ -13,202 +36,164 @@ WEB_DIR = BASE_DIR / "web"
 DATA_DIR = BASE_DIR / "data"
 
 
-def register_routes(app):
-    store = JsonStore(DATA_DIR)
-    llm_client = DeepSeekClient()
-    scholar = ScholarService(store, llm_client)
+def create_router(store: JsonStore, llm_client: DeepSeekClient, scholar: ScholarService) -> APIRouter:
+    router = APIRouter()
 
-    @app.errorhandler(Exception)
-    def handle_api_error(exc):
-        if not request.path.startswith("/api/"):
-            raise exc
-        if isinstance(exc, HTTPException):
-            return jsonify({"error": exc.description or exc.name}), exc.code or 500
-        return jsonify({"error": f"{exc.__class__.__name__}: {exc}"}), 500
+    # ── 页面路由 ────────────────────────────────────────────
 
-    def render_page(name: str):
-        return send_from_directory(WEB_DIR, name)
-
-    @app.get("/")
+    @router.get("/")
     def home():
-        return render_page("home.html")
+        return FileResponse(WEB_DIR / "home.html")
 
-    @app.get("/discovery")
+    @router.get("/discovery")
     def discovery_page():
-        return render_page("discovery.html")
+        return FileResponse(WEB_DIR / "discovery.html")
 
-    @app.get("/reader")
+    @router.get("/reader")
     def reader_page():
-        return render_page("reader.html")
+        return FileResponse(WEB_DIR / "reader.html")
 
-    @app.get("/workspace")
+    @router.get("/workspace")
     def workspace_page():
-        return render_page("workspace.html")
+        return FileResponse(WEB_DIR / "workspace.html")
 
-    @app.get("/downloads/<path:filename>")
+    @router.get("/downloads/{filename:path}")
     def download_file(filename: str):
-        return send_from_directory(store.downloads_dir, filename)
+        return FileResponse(store.downloads_dir / filename)
 
-    @app.get("/api/status")
+    # ── 状态与仪表盘 ────────────────────────────────────────
+
+    @router.get("/api/status")
     def status():
-        return jsonify({"configured": llm_client.is_configured(), "model": llm_client.model, **store.stats()})
+        return {"configured": llm_client.is_configured(), "model": llm_client.model, **store.stats()}
 
-    @app.get("/api/dashboard")
+    @router.get("/api/dashboard")
     def dashboard():
-        return jsonify(scholar.dashboard())
+        return scholar.dashboard()
 
-    @app.get("/api/papers/<paper_id>")
+    # ── 论文 CRUD ────────────────────────────────────────────
+
+    @router.get("/api/papers/{paper_id}")
     def get_paper(paper_id: str):
         try:
-            return jsonify(scholar.get_paper(paper_id))
-        except ValueError as exc:
-            return jsonify({"error": str(exc)}), 404
+            return scholar.get_paper(paper_id)
+        except ValueError:
+            raise HTTPException(status_code=404, detail="Paper not found.")
 
-    @app.post("/api/discovery/search")
-    def discovery_search():
-        payload = request.get_json(force=True)
-        topic = (payload.get("topic") or "").strip()
-        if not topic:
-            return jsonify({"error": "topic is required"}), 400
-        return jsonify(scholar.search_topic(topic))
+    @router.post("/api/papers")
+    def create_paper(body: CreatePaperRequest):
+        return scholar.create_paper(body.model_dump())
 
-    @app.get("/api/discovery/history/<history_id>")
-    def restore_discovery_history(history_id: str):
-        try:
-            return jsonify(scholar.restore_search_history(history_id))
-        except ValueError as exc:
-            return jsonify({"error": str(exc)}), 404
-
-    @app.post("/api/discovery/translate-result")
-    def translate_result():
-        payload = request.get_json(force=True)
-        return jsonify(scholar.translate_candidate(payload, (payload.get("target_language") or "zh").strip()))
-
-    @app.post("/api/discovery/download-pdf")
-    def download_pdf():
-        payload = request.get_json(force=True)
-        pdf_url = (payload.get("pdf_url") or "").strip()
-        if not pdf_url:
-            return jsonify({"error": "pdf_url is required"}), 400
-        try:
-            return jsonify(scholar.download_external_pdf(pdf_url, (payload.get("title") or "paper").strip()))
-        except Exception as exc:
-            return jsonify({"error": str(exc)}), 500
-
-    @app.post("/api/discovery/save-result")
-    def save_discovery_result():
-        payload = request.get_json(force=True)
-        title = (payload.get("title") or "").strip()
-        if not title:
-            return jsonify({"error": "title is required"}), 400
-        return jsonify(scholar.import_catalog_result(payload))
-
-    @app.post("/api/papers/import-pdf")
-    def import_pdf():
-        pdf_file = request.files.get("file")
-        if not pdf_file or not pdf_file.filename:
-            return jsonify({"error": "PDF file is required"}), 400
-        try:
-            return jsonify(scholar.import_pdf(pdf_file))
-        except RuntimeError as exc:
-            return jsonify({"error": str(exc)}), 500
-        except Exception as exc:
-            return jsonify({"error": f"PDF import failed: {exc}"}), 500
-
-    @app.post("/api/papers")
-    def create_paper():
-        payload = request.get_json(force=True)
-        title = (payload.get("title") or "").strip()
-        if not title:
-            return jsonify({"error": "title is required"}), 400
-        return jsonify(scholar.create_paper(payload))
-
-    @app.post("/api/tutorial/sample-paper")
+    @router.post("/api/tutorial/sample-paper")
     def tutorial_sample_paper():
-        return jsonify(scholar.ensure_sample_paper())
+        return scholar.ensure_sample_paper()
 
-    @app.post("/api/papers/<paper_id>/analyze")
+    @router.post("/api/papers/import-pdf")
+    async def import_pdf(file: UploadFile):
+        if not file.filename:
+            raise HTTPException(status_code=400, detail="PDF file is required")
+        try:
+            return scholar.import_pdf(file)
+        except RuntimeError as exc:
+            raise HTTPException(status_code=500, detail=str(exc))
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"PDF import failed: {exc}")
+
+    # ── AI 精读与翻译 ────────────────────────────────────────
+
+    @router.post("/api/papers/{paper_id}/analyze")
     def analyze_paper(paper_id: str):
         try:
-            return jsonify(scholar.analyze_paper(paper_id))
-        except ValueError as exc:
-            return jsonify({"error": str(exc)}), 404
+            return scholar.analyze_paper(paper_id)
+        except ValueError:
+            raise HTTPException(status_code=404, detail="Paper not found.")
 
-    @app.post("/api/papers/<paper_id>/translate")
-    def translate_paper(paper_id: str):
-        payload = request.get_json(force=True)
-        return jsonify(
-            scholar.translate_paper(
-                paper_id,
-                (payload.get("target_language") or "zh").strip(),
-                (payload.get("scope") or "abstract").strip(),
-            )
-        )
+    @router.post("/api/papers/{paper_id}/translate")
+    def translate_paper(paper_id: str, body: TranslatePaperRequest):
+        try:
+            return scholar.translate_paper(paper_id, body.target_language, body.scope)
+        except ValueError:
+            raise HTTPException(status_code=404, detail="Paper not found.")
 
-    @app.post("/api/papers/<paper_id>/sentence-search")
-    def sentence_search(paper_id: str):
-        payload = request.get_json(force=True)
-        query = (payload.get("query") or "").strip()
-        if not query:
-            return jsonify({"error": "query is required"}), 400
-        return jsonify(scholar.sentence_search(paper_id, query))
+    @router.post("/api/papers/{paper_id}/sentence-search")
+    def sentence_search(paper_id: str, body: SentenceSearchRequest):
+        try:
+            return scholar.sentence_search(paper_id, body.query)
+        except ValueError:
+            raise HTTPException(status_code=404, detail="Paper not found.")
 
-    @app.post("/api/papers/<paper_id>/assistant")
-    def assistant_chat(paper_id: str):
-        payload = request.get_json(force=True)
-        message = (payload.get("message") or "").strip()
-        if not message:
-            return jsonify({"error": "message is required"}), 400
-        return jsonify(scholar.assistant_chat(paper_id, message))
+    @router.post("/api/papers/{paper_id}/assistant")
+    def assistant_chat(paper_id: str, body: AssistantChatRequest):
+        try:
+            return scholar.assistant_chat(paper_id, body.message)
+        except ValueError:
+            raise HTTPException(status_code=404, detail="Paper not found.")
 
-    @app.get("/api/papers/<paper_id>/challenge")
+    # ── 闯关训练 ─────────────────────────────────────────────
+
+    @router.get("/api/papers/{paper_id}/challenge")
     def get_challenge(paper_id: str):
         try:
-            return jsonify(scholar.get_challenge(paper_id))
-        except ValueError as exc:
-            return jsonify({"error": str(exc)}), 404
+            return scholar.get_challenge(paper_id)
+        except ValueError:
+            raise HTTPException(status_code=404, detail="Paper not found.")
 
-    @app.post("/api/papers/<paper_id>/challenge/<stage_id>")
-    def submit_challenge_answer(paper_id: str, stage_id: str):
-        payload = request.get_json(force=True)
-        answer = (payload.get("answer") or "").strip()
-        if not answer:
-            return jsonify({"error": "answer is required"}), 400
+    @router.post("/api/papers/{paper_id}/challenge/{stage_id}")
+    def submit_challenge_answer(paper_id: str, stage_id: str, body: SubmitChallengeAnswerRequest):
         try:
-            return jsonify(scholar.submit_challenge_answer(paper_id, stage_id, answer))
+            return scholar.submit_challenge_answer(paper_id, stage_id, body.answer)
         except ValueError as exc:
-            return jsonify({"error": str(exc)}), 404
+            raise HTTPException(status_code=404, detail=str(exc))
 
-    @app.get("/api/papers/<paper_id>/challenge-report")
+    @router.get("/api/papers/{paper_id}/challenge-report")
     def challenge_report(paper_id: str):
         try:
-            return jsonify(scholar.challenge_report(paper_id))
-        except ValueError as exc:
-            return jsonify({"error": str(exc)}), 404
+            return scholar.challenge_report(paper_id)
+        except ValueError:
+            raise HTTPException(status_code=404, detail="Paper not found.")
 
-    @app.post("/api/notes")
-    def save_note():
-        payload = request.get_json(force=True)
-        paper_id = (payload.get("paper_id") or "").strip()
-        if not paper_id:
-            return jsonify({"error": "paper_id is required"}), 400
-        return jsonify(scholar.save_note(payload))
+    # ── 笔记 ─────────────────────────────────────────────────
 
-    @app.post("/api/research-plan")
-    def research_plan():
-        payload = request.get_json(force=True)
-        topic = (payload.get("topic") or "").strip()
-        if not topic:
-            return jsonify({"error": "topic is required"}), 400
-        selected_ids = payload.get("paper_ids") or []
-        return jsonify(scholar.build_research_plan(topic, selected_ids))
+    @router.post("/api/notes")
+    def save_note(body: SaveNoteRequest):
+        return scholar.save_note(body.model_dump())
 
-    @app.post("/api/writing-pack")
-    def writing_pack():
-        payload = request.get_json(force=True)
-        topic = (payload.get("topic") or "").strip()
-        goal = (payload.get("goal") or "").strip()
-        if not topic:
-            return jsonify({"error": "topic is required"}), 400
-        selected_ids = payload.get("paper_ids") or []
-        return jsonify(scholar.generate_writing_pack(topic, selected_ids, goal))
+    # ── 检索与发现 ───────────────────────────────────────────
+
+    @router.post("/api/discovery/search")
+    def discovery_search(body: SearchRequest):
+        return scholar.search_topic(body.topic)
+
+    @router.get("/api/discovery/history/{history_id}")
+    def restore_discovery_history(history_id: str):
+        try:
+            return scholar.restore_search_history(history_id)
+        except ValueError:
+            raise HTTPException(status_code=404, detail="Search history not found.")
+
+    @router.post("/api/discovery/translate-result")
+    def translate_result(body: TranslateResultRequest):
+        return scholar.translate_candidate(body.model_dump(), body.target_language)
+
+    @router.post("/api/discovery/download-pdf")
+    def download_pdf(body: DownloadPdfRequest):
+        try:
+            return scholar.download_external_pdf(body.pdf_url, body.title)
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=str(exc))
+
+    @router.post("/api/discovery/save-result")
+    def save_discovery_result(body: SaveDiscoveryResultRequest):
+        return scholar.import_catalog_result(body.model_dump())
+
+    # ── 研究计划与写作包 ─────────────────────────────────────
+
+    @router.post("/api/research-plan")
+    def research_plan(body: ResearchPlanRequest):
+        return scholar.build_research_plan(body.topic, body.paper_ids)
+
+    @router.post("/api/writing-pack")
+    def writing_pack(body: WritingPackRequest):
+        return scholar.generate_writing_pack(body.topic, body.paper_ids, body.goal)
+
+    return router
